@@ -22,22 +22,26 @@
    - **Plan**: Free.
 
 ## Bước 3: Cấu hình Biến Môi Trường (Environment Variables) - QUAN TRỌNG
-Để kích hoạt tính năng lưu file lâu dài, bạn cần thêm các biến môi trường trên Render.
-1. Tại trang quản lý dịch vụ trên Render, chọn tab **"Environment"**.
-2. Nhấn **"Add Environment Variable"** và thêm lần lượt 3 biến sau (lấy từ bước 1):
+Bạn cần thiết lập các biến môi trường để ứng dụng hoạt động đầy đủ tính năng (Lưu trữ, Cơ sở dữ liệu, AI).
 
-   | Key | Value (Ví dụ) |
+1. Tại trang quản lý dịch vụ trên Render, chọn tab **"Environment"**.
+2. Nhấn **"Add Environment Variable"** và thêm các biến sau:
+
+   | Key | Value (Mô tả) |
    | --- | --- |
-   | `CLOUDINARY_CLOUD_NAME` | `tên_cloud_của_bạn` |
-   | `CLOUDINARY_API_KEY` | `1234567890` |
-   | `CLOUDINARY_API_SECRET` | `abc-xyz-bit-mat` |
+   | `MONGODB_URI` | Chuỗi kết nối MongoDB Atlas (bắt đầu bằng `mongodb+srv://...`). *Nếu chưa có, bạn cần tạo database trên [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).* |
+   | `CLOUDINARY_CLOUD_NAME` | Lấy từ Cloudinary Dashboard. |
+   | `CLOUDINARY_API_KEY` | Lấy từ Cloudinary Dashboard. |
+   | `CLOUDINARY_API_SECRET` | Lấy từ Cloudinary Dashboard. |
+   | `GEMINI_API_KEY` | Khóa API Gemini của bạn (để chấm điểm đọc). |
+   | `VITE_API_BASE_URL` | (Để trống hoặc điền `/`) |
 
 3. Nhấn **"Save Changes"**. Server sẽ tự động khởi động lại.
 
 ---
 
-### Lưu ý về Cơ sở dữ liệu (Database)
-Hiện tại ứng dụng sử dụng file `audio-map.json` để nhớ "bài học nào dùng file âm thanh nào". File này vẫn nằm trên server.
-- Nếu bạn sử dụng Cloudinary như hướng dẫn trên: Các **file âm thanh** (mp3/wav) sẽ **được lưu vĩnh viễn** trên Cloudinary.
-- Tuy nhiên: Nếu server Render khởi động lại, file `audio-map.json` có thể bị reset về trạng thái ban đầu. Điều này có nghĩa là ứng dụng có thể "quên" mất liên kết đến file âm thanh dù file đó vẫn còn trên Cloudinary.
-- **Giải pháp tạm thời**: Với nhu cầu học tập cá nhân/nhóm nhỏ, bạn có thể chấp nhận việc phải thiết lập lại các bài học tùy chỉnh nếu server bị reset (server Render gói Free sẽ reset nếu không có ai truy cập trong thời gian dài).
+### Lưu ý về Dữ liệu
+Hiện tại ứng dụng đã hỗ trợ **MongoDB**.
+- Nếu bạn cấu hình `MONGODB_URI`: Toàn bộ dữ liệu bài học, học sinh, và liên kết file ghi âm sẽ được lưu an toàn trên cơ sở dữ liệu đám mây. Dữ liệu **số không bị mất** khi Render khởi động lại.
+- Nếu **KHÔNG** cấu hình `MONGODB_URI`: Ứng dụng sẽ chạy ở chế độ tạm thời (sử dụng file JSON và file tạm). Dữ liệu sẽ bị mất mỗi khi Server Render khởi động lại (do gói Free).
+**Khuyên dùng:** Hãy đăng ký MongoDB Atlas (Miễn phí 512MB) để dữ liệu luôn được an toàn.
