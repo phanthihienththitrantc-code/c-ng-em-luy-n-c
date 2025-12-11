@@ -39,19 +39,26 @@ const distPath = path.join(__dirname, '../dist');
 if (fs.existsSync(distPath)) {
     console.log("Serving frontend from:", distPath);
     app.use(express.static(distPath));
-  app.use('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
-        // Exclude API routes from redirect
+  const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+    console.log("Serving frontend from:", distPath);
+    app.use(express.static(distPath));
+    
+    app.get('*', (req, res) => {
         if (!req.path.startsWith('/api')) {
             res.sendFile(path.join(distPath, 'index.html'));
         }
     });
 } else {
+    console.log("Frontend not found");
+}
     console.log("WARNING: 'dist' folder not found. Only API is running.");
 }
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 DEBUG SERVER STARTED on port ${PORT}`);
     console.log(`Running on: http://0.0.0.0:${PORT}`);
+});
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
 });
