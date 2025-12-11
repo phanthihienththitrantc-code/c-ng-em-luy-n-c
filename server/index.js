@@ -44,9 +44,20 @@ if (fs.existsSync(distPath)) {
     console.log("Serving frontend from:", distPath);
     app.use(express.static(distPath));
     
-    app.get('*', (req, res) => {
+    // Sửa lại catch-all route
+    app.get('(.*)', (req, res) => {
         if (!req.path.startsWith('/api')) {
             res.sendFile(path.join(distPath, 'index.html'));
+        }
+    });
+} else {
+    console.log("Frontend not found");
+}
+
+// Thêm vào cuối file
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
+});
         }
     });
 } else {
