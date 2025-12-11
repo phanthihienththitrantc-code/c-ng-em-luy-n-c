@@ -31,11 +31,6 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './'),
       }
     },
-    build: {
-      outDir: 'dist',
-      sourcemap: false,
-      chunkSizeWarningLimit: 1600,
-    },
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
     }
