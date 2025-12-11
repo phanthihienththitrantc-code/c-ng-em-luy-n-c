@@ -45,8 +45,13 @@ const AudioMapping = mongoose.model('AudioMapping', AudioMappingSchema);
 
 // --- STATIC FOLDERS ---
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR);
+try {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+        console.log(`Creating uploads directory at: ${UPLOADS_DIR}`);
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+} catch (err) {
+    console.error("WARNING: Could not create uploads directory:", err.message);
 }
 app.use('/uploads', express.static(UPLOADS_DIR));
 
@@ -182,5 +187,6 @@ if (fs.existsSync(distPath)) {
 }
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running at http://0.0.0.0:${PORT}`);
+    console.log(`🚀 Server starting on port ${PORT}`);
+    console.log(`Health check: http://0.0.0.0:${PORT}`);
 });
