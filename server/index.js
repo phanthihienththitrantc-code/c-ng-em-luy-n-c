@@ -39,7 +39,8 @@ const distPath = path.join(__dirname, '../dist');
 if (fs.existsSync(distPath)) {
     console.log("Serving frontend from:", distPath);
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // Use regex to match all routes (Express 5 compatible)
+    app.get(/.*/, (req, res) => {
         // Exclude API routes from redirect
         if (!req.path.startsWith('/api')) {
             res.sendFile(path.join(distPath, 'index.html'));
