@@ -57,6 +57,7 @@ if (process.env.CLOUDINARY_CLOUD_NAME) {
         params: {
             folder: 'reading-app-audio',
             resource_type: 'auto',
+            allowed_formats: ['mp3', 'wav', 'webm', 'ogg', 'm4a', 'mp4'],
         },
     });
     upload = multer({ storage: storage });
