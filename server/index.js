@@ -19,8 +19,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 console.log("-----------------------------------------");
+console.log("=== KIEM TRA PHIEN BAN MOI === (UPDATED)");
 console.log("STARTING FULL SERVER (ES MODULE)...");
-console.log("Node Version:", process.version);
 console.log("-----------------------------------------");
 
 const app = express();
