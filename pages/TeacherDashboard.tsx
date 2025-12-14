@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { MOCK_STUDENTS, LESSONS } from '../constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { PlusCircle, Filter, Download, Save, MessageSquare, UserPlus, X, Trash2, Edit, ChevronDown, PlayCircle, StopCircle, Edit2, Check, Settings, BookOpen } from 'lucide-react';
+import { PlusCircle, Filter, Download, Save, MessageSquare, UserPlus, X, Trash2, Edit, ChevronDown, PlayCircle, StopCircle, Edit2, Check, Settings, BookOpen, RefreshCw } from 'lucide-react';
 import { StudentStats } from '../types';
 import { playClick, playSuccess } from '../services/audioService';
 import { AddStudentModal } from '../components/AddStudentModal';
@@ -10,7 +10,7 @@ import { AssignHomeworkModal } from '../components/AssignHomeworkModal';
 import { EditStudentModal, EditFormState } from '../components/EditStudentModal';
 import { ChangePasswordForm } from './ChangePasswordForm';
 import { saveCommunication, getCommunications, Communication } from '../services/communicationService';
-import { getStudents } from '../services/studentService';
+import { getStudents, syncWithServer } from '../services/studentService';
 
 export const TeacherDashboard: React.FC = () => {
   const [students, setStudents] = useState<StudentStats[]>(() => getStudents());
@@ -25,12 +25,19 @@ export const TeacherDashboard: React.FC = () => {
 
   // Week Selector State
   // Week Selector State
-  // Week Selector State
   const [selectedWeek, setSelectedWeek] = useState<number>(18);
   const weeks = [10, 11, 12, 13, 14, 15, 16, 17, 18];
 
   // Feedback/Communications
   const [parentFeedback, setParentFeedback] = useState<Communication[]>([]);
+
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    await syncWithServer();
+    setTimeout(() => setIsSyncing(false), 800);
+  };
 
   useEffect(() => {
     // Load feedback from parents
@@ -43,6 +50,10 @@ export const TeacherDashboard: React.FC = () => {
 
     loadData();
     window.addEventListener('students_updated', loadData);
+
+    // Initial Sync with Server
+    syncWithServer();
+
     return () => window.removeEventListener('students_updated', loadData);
   }, []);
 
@@ -353,6 +364,14 @@ export const TeacherDashboard: React.FC = () => {
               </select>
               <ChevronDown className="w-4 h-4 text-blue-800 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+
+            <button
+              onClick={handleSync}
+              className={`p-1.5 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors ${isSyncing ? 'animate-spin' : ''}`}
+              title="Cập nhật dữ liệu từ Server"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
           </div>
         </div>
         <div className="flex gap-3 flex-wrap">

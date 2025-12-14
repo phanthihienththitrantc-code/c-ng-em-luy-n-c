@@ -84,7 +84,108 @@ const LessonAudioSchema = new mongoose.Schema({
 });
 const LessonAudio = mongoose.model('LessonAudio', LessonAudioSchema);
 
+// --- 3. STUDENT & SCORE MANAGEMENT (MONGODB) ---
+const StudentSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    completedLessons: { type: Number, default: 0 },
+    averageScore: { type: Number, default: 0 },
+    readingSpeed: { type: mongoose.Schema.Types.Mixed, default: 0 }, // Number or string (e.g. 'Đánh vần')
+    history: [{
+        week: Number,
+        score: Number,
+        speed: mongoose.Schema.Types.Mixed
+    }],
+    badges: [String],
+    lastPractice: { type: Date, default: Date.now }
+});
+
+const Student = mongoose.model('Student', StudentSchema);
+
 // --- 5. API ROUTES ---
+
+// GET All Students
+app.get('/api/students', async (req, res) => {
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            // Fallback if DB not connected
+            return res.json([]);
+        }
+        const students = await Student.find().sort({ lastPractice: -1 });
+        res.json(students);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// CREATE / SYNC Student
+app.post('/api/students', async (req, res) => {
+    try {
+        const { id, name } = req.body;
+        // Upsert: Update if exists, Insert if new
+        const student = await Student.findOneAndUpdate(
+            { id: id },
+            {
+                $setOnInsert: {
+                    name,
+                    completedLessons: 0,
+                    averageScore: 0,
+                    readingSpeed: 0,
+                    history: [],
+                    badges: []
+                }
+            },
+            { new: true, upsert: true } // Upsert option
+        );
+        res.json(student);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// UPDATE Progress (After Lesson)
+app.post('/api/students/:id/progress', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { score, speed, week, lessonTitle } = req.body;
+
+        const student = await Student.findOne({ id });
+        if (!student) return res.status(404).json({ error: 'Student not found' });
+
+        // Update History for this week
+        const historyIndex = student.history.findIndex(h => h.week === week);
+        if (historyIndex >= 0) {
+            // Update existing week record (keep highest score?)
+            // For now, overwrite with latest attempt
+            student.history[historyIndex].score = score;
+            student.history[historyIndex].speed = speed;
+        } else {
+            student.history.push({ week, score, speed });
+        }
+
+        // Recalc Stats
+        const totalScore = student.history.reduce((acc, h) => acc + h.score, 0);
+        student.averageScore = Math.round(totalScore / student.history.length);
+        student.completedLessons += 1; // Increment count
+        student.readingSpeed = speed; // Current speed
+        student.lastPractice = new Date();
+
+        await student.save();
+        res.json(student);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE Student
+app.delete('/api/students/:id', async (req, res) => {
+    try {
+        await Student.deleteOne({ id: req.params.id });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // Health Check
 app.get('/api/health', (req, res) => {
