@@ -161,7 +161,7 @@ export const LESSONS: Lesson[] = [
     vocabulary: ['bàn ghế', 'khăn rằn', 'ân cần', 'cần mẫn', 'lon ton', 'khôn lớn', 'số bốn', 'đèn pin', 'ngon nến', 'bản tin', 'con giun', 'quả cam', 'chăm làm', 'đầm sen', 'chăm chỉ', 'nằm ngủ'],
     readingText: [
       'Bé Vân và bé An là bạn thân.',
-      'Bé lon ton ra ngõ ra ngõ đón bà ở quê lên.',
+      'Bé lon ton ra ngõ đón bà ở quê lên.',
       'Dì Trâm ân cần đưa mía cho Lan ăn.',
       'Bé Nam bị đau chân, hôm nay bà đưa Nam đi khám ở trạm y tế xã.'
     ],
@@ -344,8 +344,8 @@ export const LESSONS: Lesson[] = [
     id: 'w15',
     week: 15,
     title: 'Tuần 15: ươc, ươt, ươm, ươp...',
-    description: 'Vần ưoc, ươt, ươm, ươp, ươn, ương, oa, oe.',
-    phonemes: ['ưoc', 'ươt', 'ươm', 'ươp', 'ươn', 'ương', 'oa', 'oe'],
+    description: 'Vần ươc, ươt, ươm, ươp, ươn, ương, oa, oe.',
+    phonemes: ['ươc', 'ươt', 'ươm', 'ươp', 'ươn', 'ương', 'oa', 'oe'],
     vocabulary: ['thước kẻ', 'uống nước', 'mượt mà', 'trượt băng', 'quả mướp', 'con bướm', 'hồ gươm', 'sườn đồi', 'vườn cây', 'bay lượn', 'hương thơm', 'quê hương', 'chìa khóa', 'sức khỏe', 'áo hoa', 'xòe ô', 'chích chòe', 'khỏe mạnh', 'hoa loa kèn'],
     readingText: [
       'Đèn khoe đèn tỏ hơn trăng,',
