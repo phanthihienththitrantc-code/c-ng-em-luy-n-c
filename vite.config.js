@@ -5,16 +5,9 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
-    return {
+    const config = {
         plugins: [react()],
         base: '/',
-        build: {
-            outDir: 'dist',
-            assetsDir: 'assets',
-            sourcemap: false,
-            emptyOutDir: true,
-            chunkSizeWarningLimit: 1000,
-        },
         resolve: {
             alias: {
                 '@': path.resolve(process.cwd(), './'),
@@ -24,4 +17,5 @@ export default defineConfig(({ mode }) => {
             'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
         }
     };
+    return config;
 });
