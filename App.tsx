@@ -108,11 +108,7 @@ const TeacherLoginModal: React.FC<{ isOpen: boolean; onClose: () => void; onLogi
           </button>
         </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-xs text-gray-400 bg-gray-50 py-2 rounded border border-gray-100">
-            Mật khẩu mặc định: <span className="font-mono font-bold text-gray-600">{import.meta.env.VITE_TEACHER_PASSWORD || '123456'}</span>
-          </p>
-        </div>
+
       </div>
     </div>
   );
