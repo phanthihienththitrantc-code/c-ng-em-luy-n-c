@@ -38,25 +38,41 @@ export const syncWithServer = async () => {
         if (Array.isArray(serverData)) {
             const localStudents = getStudents();
 
-            // Start with server data
-            let finalStudents = [...serverData];
+            // MERGE STRATEGY: One by one based on ID
+            // Map all IDs
+            const allIds = new Set([...serverData.map(s => s.id), ...localStudents.map(s => s.id)]);
+            const finalStudents: StudentStats[] = [];
 
-            // MERGE: Keep local students that are not on server
-            localStudents.forEach(localS => {
-                if (!serverData.find(serverS => serverS.id === localS.id)) {
-                    finalStudents.push(localS);
-                    syncStudentToServer(localS);
+            allIds.forEach(id => {
+                const serverVer = serverData.find(s => s.id === id);
+                const localVer = localStudents.find(s => s.id === id);
+
+                if (serverVer && !localVer) {
+                    // Only on server -> Keep server
+                    finalStudents.push(serverVer);
+                } else if (!serverVer && localVer) {
+                    // Only on local -> Keep local AND push to server
+                    finalStudents.push(localVer);
+                    syncStudentToServer(localVer);
+                } else if (serverVer && localVer) {
+                    // Conflict: Compare timestamps
+                    const serverTime = new Date(serverVer.lastPractice || 0).getTime();
+                    const localTime = new Date(localVer.lastPractice || 0).getTime();
+
+                    if (localTime >= serverTime) {
+                        // Local is newer -> Keep local AND push to server
+                        finalStudents.push(localVer);
+                        syncStudentToServer(localVer);
+                    } else {
+                        // Server is newer -> Keep server
+                        finalStudents.push(serverVer);
+                    }
                 }
             });
 
-            // Deduplicate final list just in case
-            finalStudents = dedupeStudents(finalStudents);
-
-            // Check if actual change occurred (simple count check or deep compare)
-            if (finalStudents.length > 0) {
-                localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(finalStudents));
-                window.dispatchEvent(new Event('students_updated'));
-            }
+            // Save merged list
+            localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(finalStudents));
+            window.dispatchEvent(new Event('students_updated'));
         }
     } catch (error) {
         console.error("Sync failed:", error);
@@ -94,18 +110,17 @@ export const saveStudentResult = async (studentId: string, week: number, score: 
         // 1. Upload Audio if exists
         if (audioBlob) {
             try {
+                // Upload audio to Cloudinary
                 const formData = new FormData();
-                // Determine extension (mp4 or webm)
-                const ext = audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
-                formData.append('audioFile', audioBlob, `student_${studentId}_w${week}.${ext}`);
+                formData.append('audioFile', audioBlob); // MATCH SERVER EXPECTATION
 
-                const uploadRes = await fetch('/api/upload-student-audio', {
+                const response = await fetch('/api/upload-student-audio', {
                     method: 'POST',
                     body: formData
                 });
 
-                if (uploadRes.ok) {
-                    const data = await uploadRes.json();
+                if (response.ok) {
+                    const data = await response.json();
                     uploadedAudioUrl = data.url;
                 }
             } catch (e) {

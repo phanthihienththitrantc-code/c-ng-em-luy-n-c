@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { MOCK_STUDENTS, LESSONS } from '../constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { PlusCircle, Filter, Download, Save, MessageSquare, UserPlus, X, Trash2, Edit, ChevronDown, PlayCircle, StopCircle, Edit2, Check, Settings, BookOpen, RefreshCw } from 'lucide-react';
+import { PlusCircle, Filter, Download, Save, MessageSquare, UserPlus, X, Trash2, Edit, ChevronDown, PlayCircle, StopCircle, Edit2, Check, Settings, BookOpen, RefreshCw, AlertCircle } from 'lucide-react';
 import { StudentStats } from '../types';
 import { playClick, playSuccess } from '../services/audioService';
 import { AddStudentModal } from '../components/AddStudentModal';
@@ -331,6 +331,9 @@ export const TeacherDashboard: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* SYSTEM HEALTH CHECK BANNER */}
+      <SystemHealthCheck />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -826,6 +829,54 @@ export const TeacherDashboard: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// --- SYSTEM HEALTH CHECK COMPONENT ---
+const SystemHealthCheck = () => {
+  const [health, setHealth] = useState<{ mongo: string, cloudinary: boolean } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(res => res.json())
+      .then(data => setHealth(data))
+      .catch(err => console.error("Health Check Failed", err));
+  }, []);
+
+  if (!health) return null;
+
+  const mongoIssue = health.mongo !== 'connected';
+  const cloudIssue = !health.cloudinary;
+
+  if (!mongoIssue && !cloudIssue) return null;
+
+  return (
+    <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r shadow-sm">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <AlertCircle className="h-5 w-5 text-red-500" />
+        </div>
+        <div className="ml-3">
+          <h3 className="text-sm font-bold text-red-800 uppercase">Cảnh Báo Hệ Thống</h3>
+          <div className="mt-2 text-sm text-red-700">
+            <ul className="list-disc pl-5 space-y-1">
+              {mongoIssue && (
+                <li>
+                  <strong>Chưa kết nối Cơ sở dữ liệu (MongoDB):</strong> Dữ liệu học sinh và điểm số sẽ bị <span className="underline font-bold">MẤT</span> khi khởi động lại.
+                  <br /><span className="text-xs italic">Cách sửa: Thêm biến <code>MONGODB_URI</code> vào cấu hình Render.</span>
+                </li>
+              )}
+              {cloudIssue && (
+                <li>
+                  <strong>Chưa kết nối Lưu trữ (Cloudinary):</strong> File ghi âm sẽ bị xóa sau một thời gian ngắn.
+                  <br /><span className="text-xs italic">Cách sửa: Kiểm tra lại <code>CLOUDINARY_API_KEY</code> và <code>CLOUDINARY_API_SECRET</code> trên Render.</span>
+                </li>
+              )}
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

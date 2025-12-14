@@ -65,11 +65,35 @@ if (process.env.CLOUDINARY_CLOUD_NAME) {
     });
     upload = multer({ storage: storage });
     console.log("✅ Cloudinary Configured!");
+});
+upload = multer({ storage: storage });
+console.log("✅ Cloudinary Configured!");
 } else {
-    console.warn("⚠️ Cloudinary credentials missing. File uploads will fail.");
-    // Fallback multer (memory storage) just to prevent crash
-    upload = multer({ storage: multer.memoryStorage() });
+    console.warn("⚠️ Cloudinary credentials missing. Switching to Local Disk Storage.");
+
+    // Create uploads directory if it doesn't exist
+    const uploadDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const storage = multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, uploadDir)
+        },
+        filename: function (req, file, cb) {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+            // Get extension from original name or default to webm
+            const ext = file.originalname.split('.').pop() || 'webm';
+            cb(null, file.fieldname + '-' + uniqueSuffix + '.' + ext)
+        }
+    });
+
+    upload = multer({ storage: storage });
 }
+
+// Serve uploads folder statically so frontend can access them
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- 3. MIDDLEWARE ---
 app.use(cors());
@@ -125,8 +149,21 @@ const Student = mongoose.models.Student || mongoose.model('Student', StudentSche
 
 // UPLOAD STUDENT AUDIO
 app.post('/api/upload-student-audio', uploadMiddleware, (req, res) => {
-    if (req.file && req.file.path) {
-        res.json({ url: req.file.path });
+    if (req.file) {
+        let fileUrl = req.file.path;
+
+        // If we are using local disk storage, req.file.path is a system path.
+        // We need to convert it to a URL accessible by the frontend.
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+            // Assuming the file is in 'uploads/' and we are serving it via /uploads
+            // We construct a relative URL (or absolute if needed)
+            const filename = req.file.filename;
+            // Use relative path so it works with proxy/tunnel if needed, 
+            // but absolute URL is safer for some clients. Let's use relative for now.
+            fileUrl = `/uploads/${filename}`;
+        }
+
+        res.json({ url: fileUrl });
     } else {
         res.status(400).json({ error: 'No audio file uploaded' });
     }
