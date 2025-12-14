@@ -75,6 +75,24 @@ if (process.env.CLOUDINARY_CLOUD_NAME) {
 app.use(cors());
 app.use(express.json());
 
+// Upload Middleware wrapper to catch Multer/Cloudinary errors
+const uploadMiddleware = (req, res, next) => {
+    if (!upload) {
+        return res.status(500).json({ error: 'Cloudinary not configured on server' });
+    }
+    const uploader = upload.single('audioFile');
+    uploader(req, res, (err) => {
+        if (err) {
+            console.error("❌ Upload Middleware Error:", err);
+            return res.status(500).json({
+                error: 'Upload Failed',
+                details: err.message
+            });
+        }
+        next();
+    });
+};
+
 // --- 4. DATA MODELS (Quick inline schema) ---
 const LessonAudioSchema = new mongoose.Schema({
     lessonId: String,
@@ -208,24 +226,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // Upload Audio Route
-// Middleware wrapper to catch Multer/Cloudinary errors
-const uploadMiddleware = (req, res, next) => {
-    if (!upload) {
-        return res.status(500).json({ error: 'Cloudinary not configured on server' });
-    }
-    const uploader = upload.single('audioFile');
-    uploader(req, res, (err) => {
-        if (err) {
-            console.error("❌ Upload Middleware Error:", err);
-            return res.status(500).json({
-                error: 'Upload Failed',
-                details: err.message
-            });
-        }
-        next();
-    });
-};
-
 app.post('/api/lessons/:lessonId/custom-audio', uploadMiddleware, async (req, res) => {
     try {
         console.log("📥 Upload Request Received for:", req.body.text);
