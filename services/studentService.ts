@@ -21,19 +21,44 @@ export const getStudents = (): StudentStats[] => {
 // NEW: Force sync with server (Call this from Dashboard)
 export const syncWithServer = async () => {
     try {
-        // 1. Fetch latest data from server
         const response = await fetch('/api/students');
-        if (!response.ok) return;
+        const serverData: StudentStats[] = await response.json();
 
-        const serverData = await response.json();
-        if (Array.isArray(serverData) && serverData.length > 0) {
-            // 2. Update LocalStorage
-            localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(serverData));
-            // 3. Notify UI
-            window.dispatchEvent(new Event('students_updated'));
+        if (Array.isArray(serverData)) {
+            const localStudents = getStudents();
+            let hasChanges = false;
+            const finalStudents = [...serverData];
+
+            // MERGE: Keep local students that are not on server
+            localStudents.forEach(localS => {
+                if (!serverData.find(serverS => serverS.id === localS.id)) {
+                    finalStudents.push(localS);
+                    // Optional: Backfill to server
+                    syncStudentToServer(localS);
+                }
+            });
+
+            // Check if actual change occurred (simple count check or deep compare)
+            // For safety, providing we have data, we save.
+            if (finalStudents.length > 0) {
+                localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(finalStudents));
+                window.dispatchEvent(new Event('students_updated'));
+            }
         }
+    } catch (error) {
+        console.error("Sync failed:", error);
+    }
+};
+
+const syncStudentToServer = async (student: StudentStats) => {
+    try {
+        await fetch('/api/students', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: student.id, name: student.name })
+        });
     } catch (e) {
-        console.error("Sync failed:", e);
+        console.error("Backfill failed", e);
     }
 };
 
