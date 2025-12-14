@@ -449,30 +449,9 @@ export const LESSONS: Lesson[] = [
 ];
 
 // Helper to generate history for a student based on their current (week 13) stats
+// Helper to generate history for a student based on their current (week 13) stats
 const generateHistory = (currentScore: number, currentSpeed: string | number) => {
-  const history = [];
-  // Generate random fluctuations for weeks 1-18
-  for (let w = 1; w <= 18; w++) {
-    let score = currentScore;
-    let speed = currentSpeed;
-
-    if (w < 13) {
-      // Previous weeks might be slightly lower
-      score = Math.max(0, Math.min(100, currentScore - Math.floor(Math.random() * 10)));
-      if (typeof currentSpeed === 'number') {
-        speed = Math.max(0, currentSpeed - Math.floor(Math.random() * 5));
-      }
-    }
-
-    // Explicitly set the provided current stats for week 13 onwards (or just kept stable)
-    if (w >= 13) {
-      score = currentScore;
-      speed = currentSpeed;
-    }
-
-    history.push({ week: w, score, speed });
-  }
-  return history;
+  return []; // Return empty history so no mock scores are shown
 };
 
 // Raw list of students with their Week 13 status
