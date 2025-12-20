@@ -330,10 +330,26 @@ export const TeacherDashboard: React.FC = () => {
       const updatedHistory = historyExists
         ? s.history.map(h =>
           h.week === selectedWeek
-            ? { ...h, score: Number(editForm.score), speed: editForm.speed }
+            ? {
+              ...h,
+              score: Number(editForm.score),
+              speed: editForm.speed,
+              readingScore: editForm.readingScore,
+              wordScore: editForm.wordScore,
+              sentenceScore: editForm.sentenceScore,
+              exerciseScore: editForm.exerciseScore
+            }
             : h
         )
-        : [...s.history, { week: selectedWeek, score: Number(editForm.score), speed: editForm.speed }];
+        : [...s.history, {
+          week: selectedWeek,
+          score: Number(editForm.score),
+          speed: editForm.speed,
+          readingScore: editForm.readingScore,
+          wordScore: editForm.wordScore,
+          sentenceScore: editForm.sentenceScore,
+          exerciseScore: editForm.exerciseScore
+        }];
 
       return {
         ...s,

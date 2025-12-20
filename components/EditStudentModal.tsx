@@ -15,10 +15,23 @@ export interface EditFormState {
     completedLessons: number;
     score: number;
     speed: string | number;
+    readingScore: number;
+    wordScore: number;
+    sentenceScore: number;
+    exerciseScore: number;
 }
 
 export const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, onUpdate, student, week }) => {
-    const [editForm, setEditForm] = useState<EditFormState>({ name: '', completedLessons: 0, score: 0, speed: '' });
+    const [editForm, setEditForm] = useState<EditFormState>({
+        name: '',
+        completedLessons: 0,
+        score: 0,
+        speed: '',
+        readingScore: 0,
+        wordScore: 0,
+        sentenceScore: 0,
+        exerciseScore: 0
+    });
 
     useEffect(() => {
         if (student) {
@@ -27,7 +40,11 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onCl
                 name: student.name,
                 completedLessons: student.completedLessons,
                 score: weekRecord ? weekRecord.score : 0,
-                speed: weekRecord ? weekRecord.speed : 0
+                speed: weekRecord ? weekRecord.speed : 0,
+                readingScore: weekRecord?.readingScore || 0,
+                wordScore: weekRecord?.wordScore || 0,
+                sentenceScore: weekRecord?.sentenceScore || 0,
+                exerciseScore: weekRecord?.exerciseScore || 0
             });
         }
     }, [student, week]);
@@ -54,9 +71,65 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onCl
                     </div>
                     <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-3">
                         <p className="text-sm font-bold text-blue-900 border-b border-blue-200 pb-2">Dữ liệu Tuần {week}</p>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Đọc âm</label>
+                                <input
+                                    type="number" min="0" max="100"
+                                    value={editForm.readingScore}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value) || 0;
+                                        const newScore = Math.round((val + editForm.wordScore + editForm.sentenceScore + editForm.exerciseScore) / 4);
+                                        setEditForm({ ...editForm, readingScore: val, score: newScore });
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Từ ngữ</label>
+                                <input
+                                    type="number" min="0" max="100"
+                                    value={editForm.wordScore}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value) || 0;
+                                        const newScore = Math.round((editForm.readingScore + val + editForm.sentenceScore + editForm.exerciseScore) / 4);
+                                        setEditForm({ ...editForm, wordScore: val, score: newScore });
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Câu đoạn</label>
+                                <input
+                                    type="number" min="0" max="100"
+                                    value={editForm.sentenceScore}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value) || 0;
+                                        const newScore = Math.round((editForm.readingScore + editForm.wordScore + val + editForm.exerciseScore) / 4);
+                                        setEditForm({ ...editForm, sentenceScore: val, score: newScore });
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Bài tập</label>
+                                <input
+                                    type="number" min="0" max="100"
+                                    value={editForm.exerciseScore}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value) || 0;
+                                        const newScore = Math.round((editForm.readingScore + editForm.wordScore + editForm.sentenceScore + val) / 4);
+                                        setEditForm({ ...editForm, exerciseScore: val, score: newScore });
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary"
+                                />
+                            </div>
+                        </div>
+
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Điểm số</label>
-                            <input type="number" min="0" max="100" value={editForm.score} onChange={(e) => setEditForm({ ...editForm, score: parseInt(e.target.value) || 0 })} className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-primary" />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Điểm Trung Bình (Tổng)</label>
+                            <input type="number" min="0" max="100" value={editForm.score} onChange={(e) => setEditForm({ ...editForm, score: parseInt(e.target.value) || 0 })} className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-primary font-bold text-blue-600" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Tốc độ đọc</label>
