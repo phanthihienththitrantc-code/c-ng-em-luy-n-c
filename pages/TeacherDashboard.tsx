@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { MOCK_STUDENTS, LESSONS } from '../constants';
+import { MOCK_STUDENTS, LESSONS as DEFAULT_LESSONS } from '../constants';
+import { getLessons } from '../services/lessonService';
+import { Lesson } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { PlusCircle, Filter, Download, Upload, Save, MessageSquare, UserPlus, X, Trash2, Edit, ChevronDown, PlayCircle, StopCircle, Edit2, Check, Settings, BookOpen, RefreshCw, AlertCircle } from 'lucide-react';
 import { StudentStats } from '../types';
@@ -24,8 +26,27 @@ export const TeacherDashboard: React.FC = () => {
   const [tempClassName, setTempClassName] = useState('');
 
   // Week Selector State
+  // Lesson Data for Weeks
+  const [allLessons, setAllLessons] = useState<Lesson[]>(DEFAULT_LESSONS);
   const [selectedWeek, setSelectedWeek] = useState<number>(18);
-  const weeks = Array.from(new Set(LESSONS.map(l => l.week))).sort((a, b) => b - a);
+
+  // Dynamic Weeks based on actual lessons
+  const weeks = useMemo(() => {
+    return Array.from(new Set(allLessons.map(l => l.week))).sort((a, b) => b - a);
+  }, [allLessons]);
+
+  // Fetch Lessons on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      const data = await getLessons();
+      if (data.length > 0) {
+        setAllLessons(data);
+        // Optional: auto-select latest week?
+        // setSelectedWeek(Math.max(...data.map(l => l.week)));
+      }
+    };
+    fetchData();
+  }, []);
 
   // Feedback/Communications
   const [parentFeedback, setParentFeedback] = useState<Communication[]>([]);
@@ -234,7 +255,7 @@ export const TeacherDashboard: React.FC = () => {
 
   const handleAssignHomework = (lessonId: string, note: string, dueDate: string, readingLimit: number, quizLimit: number) => {
     try {
-      const lesson = LESSONS.find(l => l.id === lessonId);
+      const lesson = allLessons.find(l => l.id === lessonId);
       if (!lesson) {
         console.error("Lesson not found:", lessonId);
         return;
@@ -365,7 +386,7 @@ export const TeacherDashboard: React.FC = () => {
     setPlayingStudentId(student.id);
 
     // Get text content for the selected week
-    const lesson = LESSONS.find(l => l.week === selectedWeek);
+    const lesson = allLessons.find(l => l.week === selectedWeek);
     let textToRead = "Thưa cô con đọc bài."; // Default intro
 
     if (lesson && lesson.readingText.length > 0) {
@@ -611,7 +632,7 @@ export const TeacherDashboard: React.FC = () => {
           Kho Bài Đọc Tuần {selectedWeek}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {LESSONS.filter(l => l.week === selectedWeek).map(lesson => (
+          {allLessons.filter(l => l.week === selectedWeek).map(lesson => (
             <div key={lesson.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-colors bg-blue-50/30">
               <h4 className="font-bold text-gray-900 mb-1">{lesson.title}</h4>
               <p className="text-xs text-gray-500 mb-3 line-clamp-2">{lesson.description}</p>
@@ -628,7 +649,7 @@ export const TeacherDashboard: React.FC = () => {
               </button>
             </div>
           ))}
-          {LESSONS.filter(l => l.week === selectedWeek).length === 0 && (
+          {allLessons.filter(l => l.week === selectedWeek).length === 0 && (
             <p className="text-gray-500 italic text-sm col-span-3">Chưa có bài đọc nào cho tuần này.</p>
           )}
         </div>
