@@ -1,7 +1,7 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { LESSONS, MOCK_STUDENTS } from '../constants';
 import { Link } from 'react-router-dom';
-import { BookOpen, Star, ChevronRight, RotateCcw, Bell, User, School } from 'lucide-react';
+import { BookOpen, Star, ChevronRight, RotateCcw, Bell, User, School, Trophy } from 'lucide-react';
 import { playClick } from '../services/audioService';
 import { getCommunications, Communication, saveCommunication } from '../services/communicationService';
 import { StudentStats } from '../types';
@@ -160,9 +160,17 @@ export const StudentDashboard: React.FC = () => {
           Thoát lớp {classId}
         </button>
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 relative">
           <h1 className="text-3xl font-bold text-blue-900 mb-2">Chào bạn nhỏ lớp {classId}!</h1>
-          <p className="text-gray-500">Chọn tên của mình để bắt đầu học nhé</p>
+          <p className="text-gray-500 mb-4">Chọn tên của mình để bắt đầu học nhé</p>
+
+          <button
+            onClick={() => { playClick(); window.location.hash = '/leaderboard'; }}
+            className="inline-flex items-center gap-2 px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-white font-bold rounded-full shadow-lg border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1 transition-all"
+          >
+            <Trophy className="w-5 h-5 animate-bounce" />
+            Xem Bảng Vàng
+          </button>
         </div>
 
         {/* Search Bar */}
@@ -222,7 +230,16 @@ export const StudentDashboard: React.FC = () => {
             <p className="text-xs text-gray-500">Học sinh Lớp 1A3</p>
           </div>
         </div>
-        <button onClick={handeLogout} className="text-sm text-primary hover:underline">Chuyển tài khoản</button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { playClick(); window.location.hash = '/leaderboard'; }}
+            className="bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg border border-yellow-300 font-bold text-sm flex items-center gap-2 hover:bg-yellow-200 transition-colors"
+            title="Bảng Xếp Hạng"
+          >
+            <Trophy className="w-4 h-4" /> BXH
+          </button>
+          <button onClick={handeLogout} className="text-sm text-gray-500 hover:text-red-500 hover:underline">Chuyển TK</button>
+        </div>
       </div>
 
       {/* New Homework Notification */}
