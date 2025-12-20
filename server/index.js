@@ -413,24 +413,6 @@ app.get('/api/test-cloudinary', async (req, res) => {
 });
 
 
-// --- 6. SERVE FRONTEND ---
-const distPath = path.join(__dirname, '../dist');
-if (fs.existsSync(distPath)) {
-    console.log("Serving frontend from:", distPath);
-    app.use(express.static(distPath));
-    // SPA Fallback
-    app.get(/.*/, (req, res) => {
-        if (!req.path.startsWith('/api')) {
-            res.sendFile(path.join(distPath, 'index.html'));
-        }
-    });
-} else {
-    // Default Home for API-only mode
-    app.get('/', (req, res) => {
-        res.send('Server is running (API mode). Frontend not found.');
-    });
-}
-
 // --- MIGRATION TOOL: Fix Legacy Data ---
 // Truy cập đường link này một lần để chuyển toàn bộ HS cũ sang lớp 1A3
 app.get('/api/migrate-legacy-data', async (req, res) => {
@@ -461,6 +443,26 @@ app.get('/api/migrate-legacy-data', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+// --- 6. SERVE FRONTEND ---
+const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+    console.log("Serving frontend from:", distPath);
+    app.use(express.static(distPath));
+    // SPA Fallback
+    app.get(/.*/, (req, res) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(distPath, 'index.html'));
+        }
+    });
+} else {
+    // Default Home for API-only mode
+    app.get('/', (req, res) => {
+        res.send('Server is running (API mode). Frontend not found.');
+    });
+}
+
+
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 FULL SERVER running on port ${PORT}`);
