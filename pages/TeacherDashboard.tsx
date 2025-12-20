@@ -448,9 +448,10 @@ export const TeacherDashboard: React.FC = () => {
               <span className="text-xs font-bold text-gray-500 uppercase">Mã Lớp:</span>
               <input
                 value={classId}
-                onChange={(e) => handleClassIdChange(e.target.value)}
+                onChange={(e) => handleClassIdChange(e.target.value.toUpperCase())}
                 className="bg-transparent border-b border-gray-300 w-24 text-sm font-bold text-primary focus:outline-none focus:border-primary"
                 title="Nhập mã lớp để chuyển đổi dữ liệu"
+                placeholder="DEFAULT"
               />
             </div>
 

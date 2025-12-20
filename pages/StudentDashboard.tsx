@@ -133,7 +133,7 @@ export const StudentDashboard: React.FC = () => {
             placeholder="Ví dụ: 1A3"
             className="w-full text-center text-2xl font-bold py-4 border-2 border-blue-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 outline-none transition-all uppercase placeholder:text-gray-300 placeholder:normal-case placeholder:font-normal"
             value={classInput}
-            onChange={(e) => setClassInput(e.target.value)}
+            onChange={(e) => setClassInput(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === 'Enter' && handleClassSubmit()}
           />
 
