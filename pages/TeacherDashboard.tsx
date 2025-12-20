@@ -32,7 +32,7 @@ export const TeacherDashboard: React.FC = () => {
 
   // Dynamic Weeks based on actual lessons
   const weeks = useMemo(() => {
-    return Array.from(new Set(allLessons.map(l => l.week))).sort((a, b) => b - a);
+    return Array.from(new Set(allLessons.map(l => l.week))).sort((a: number, b: number) => b - a);
   }, [allLessons]);
 
   // Fetch Lessons on mount
