@@ -203,7 +203,22 @@ app.get('/api/students', async (req, res) => {
         }
 
         const classId = req.query.classId;
-        const filter = classId ? { classId } : {};
+        let filter = {};
+
+        if (classId) {
+            if (classId === 'DEFAULT') {
+                // Legacy support: 'DEFAULT' class includes students with no classId assigned yet
+                filter = {
+                    $or: [
+                        { classId: 'DEFAULT' },
+                        { classId: { $exists: false } }, // Old records
+                        { classId: null }
+                    ]
+                };
+            } else {
+                filter = { classId };
+            }
+        }
 
         const students = await Student.find(filter).sort({ lastPractice: -1 });
         res.json(students);
