@@ -460,25 +460,7 @@ export const TeacherDashboard: React.FC = () => {
               />
             </div>
 
-            {/* TEMPORARY MIGRATION BUTTON */}
-            <button
-              onClick={async () => {
-                if (confirm('Bạn có chắc muốn chuyển toàn bộ học sinh cũ vào lớp 1A3 không?')) {
-                  try {
-                    const res = await fetch('/api/migrate-legacy-data');
-                    const data = await res.json();
-                    alert(data.message || 'Thành công!');
-                    await syncWithServer(classId); // Refresh
-                  } catch (e) {
-                    alert('Lỗi: ' + e);
-                  }
-                }
-              }}
-              className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs px-2 py-1 rounded border border-yellow-300 transition-colors"
-              title="Bấm vào đây nếu bạn không thấy học sinh cũ trong lớp 1A3"
-            >
-              Sửa Lỗi Dữ Liệu Cũ
-            </button>
+
           </div>
 
           <div className="flex items-center gap-2">
@@ -515,17 +497,7 @@ export const TeacherDashboard: React.FC = () => {
           >
             <UserPlus className="w-4 h-4 mr-2" /> Thêm Học Sinh
           </button>
-          <button
-            onClick={() => {
-              if (window.confirm("Cô có chắc muốn khôi phục lại danh sách học sinh mẫu ban đầu không? (Dữ liệu hiện tại sẽ bị ghi đè)")) {
-                resetToMock();
-                playSuccess();
-              }
-            }}
-            className="flex items-center px-4 py-2 bg-red-100 text-red-600 border border-red-200 rounded-lg font-bold hover:bg-red-200 shadow-sm"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" /> Khôi phục Mẫu
-          </button>
+
           <button
             onClick={() => { playClick(); window.location.hash = '/teacher/lessons'; }}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 bg-gradient-to-r hover:from-blue-50 hover:to-white transition-all duration-300"
