@@ -55,18 +55,20 @@ export const StudentDashboard: React.FC = () => {
     localStorage.setItem('current_student_id', student.id);
   };
 
-  const handeLogout = () => {
+  const handleLogout = () => {
+    playClick();
     setSelectedStudent(null);
     localStorage.removeItem('current_student_id');
   };
 
   const handleExitClass = () => {
-    if (window.confirm("Bạn muốn thoát khỏi lớp này?")) {
+    playClick();
+    if (window.confirm(`Bạn muốn thoát khỏi lớp ${classId}?`)) {
       localStorage.removeItem('student_class_id');
       setClassId(null);
       setSelectedStudent(null);
     }
-  }
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -155,7 +157,8 @@ export const StudentDashboard: React.FC = () => {
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in-up relative">
         <button
           onClick={handleExitClass}
-          className="absolute top-0 right-0 text-sm text-gray-400 hover:text-red-500 underline"
+          className="absolute top-0 right-0 z-50 px-3 py-1 bg-red-50 text-red-500 rounded-full text-sm font-bold hover:bg-red-100 hover:text-red-700 transition-colors border border-red-100"
+          title="Thoát khỏi lớp học này"
         >
           Thoát lớp {classId}
         </button>
@@ -238,7 +241,7 @@ export const StudentDashboard: React.FC = () => {
           >
             <Trophy className="w-4 h-4" /> BXH
           </button>
-          <button onClick={handeLogout} className="text-sm text-gray-500 hover:text-red-500 hover:underline">Chuyển TK</button>
+          <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-red-500 hover:underline">Chuyển TK</button>
         </div>
       </div>
 
