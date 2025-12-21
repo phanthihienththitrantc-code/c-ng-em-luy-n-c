@@ -105,9 +105,181 @@ const connectDB = async () => {
 };
 connectDB();
 
-// --- API ROUTES (ADAPTED FOR DUAL MODE) ---
+// --- 2. CLOUDINARY CONFIG ---
+// Only config if ALL credentials exist
+let upload = null;
+const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+const apiKey = process.env.CLOUDINARY_API_KEY;
+const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-// GET All Students
+if (cloudName && apiKey && apiSecret) {
+    cloudinary.config({
+        cloud_name: cloudName.trim(),
+        api_key: apiKey.trim(),
+        api_secret: apiSecret.trim()
+    });
+
+    const storage = new CloudinaryStorage({
+        cloudinary: cloudinary,
+        params: {
+            folder: 'reading-app-audio',
+            resource_type: 'auto',
+            format: async (req, file) => {
+                // Keep original extension or fallback
+                return file.originalname.split('.').pop() || 'webm';
+            },
+        },
+    });
+    upload = multer({ storage: storage });
+    console.log("✅ Cloudinary Configured!");
+} else {
+    console.warn("⚠️ Cloudinary credentials missing. Switching to Local Disk Storage.");
+
+    // Create uploads directory if it doesn't exist
+    const uploadDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const storage = multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, uploadDir)
+        },
+        filename: function (req, file, cb) {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+            // Get extension from original name or default to webm
+            const ext = file.originalname.split('.').pop() || 'webm';
+            cb(null, file.fieldname + '-' + uniqueSuffix + '.' + ext)
+        }
+    });
+
+    upload = multer({ storage: storage });
+}
+
+// Serve uploads folder statically so frontend can access them
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// --- 3. MIDDLEWARE ---
+app.use(cors());
+app.use(express.json());
+
+// Upload Middleware wrapper to catch Multer/Cloudinary errors
+const uploadMiddleware = (req, res, next) => {
+    if (!upload) {
+        return res.status(500).json({ error: 'Cloudinary not configured on server' });
+    }
+    const uploader = upload.single('audioFile');
+    uploader(req, res, (err) => {
+        if (err) {
+            console.error("❌ Upload Middleware Error:", err);
+            return res.status(500).json({
+                error: 'Upload Failed',
+                details: err.message
+            });
+        }
+        next();
+    });
+};
+
+// --- 4. DATA MODELS (Quick inline schema) ---
+const LessonAudioSchema = new mongoose.Schema({
+    lessonId: String,
+    text: String,
+    audioUrl: String,
+    createdAt: { type: Date, default: Date.now }
+});
+const LessonAudio = mongoose.model('LessonAudio', LessonAudioSchema);
+
+// --- 3. STUDENT & SCORE MANAGEMENT (MONGODB) ---
+const StudentSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    classId: { type: String, required: false, default: 'DEFAULT' }, // NEW: Class ID
+    name: { type: String, required: true },
+    completedLessons: { type: Number, default: 0 },
+    averageScore: { type: Number, default: 0 },
+    readingSpeed: { type: mongoose.Schema.Types.Mixed, default: 0 }, // Number or string
+    history: [{
+        week: Number,
+        score: Number,
+        speed: mongoose.Schema.Types.Mixed,
+        audioUrl: String // New field for recording
+    }],
+    badges: [String],
+    lastPractice: { type: Date, default: Date.now }
+});
+
+const Student = mongoose.models.Student || mongoose.model('Student', StudentSchema);
+
+// --- LESSON SCHEMA & MODEL ---
+const LessonSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    week: Number,
+    title: String,
+    description: String,
+    readingText: [String],
+    phonemes: [String],
+    vocabulary: [String],
+    questions: [{
+        id: String,
+        question: String,
+        options: [String],
+        correctAnswer: String
+    }]
+});
+const Lesson = mongoose.models.Lesson || mongoose.model('Lesson', LessonSchema);
+
+
+
+// --- FILE-BASED AUDIO MAP FALLBACK (For local run without MongoDB) ---
+const AUDIO_MAP_FILE = path.join(__dirname, 'audio-map.json');
+
+const loadAudioMap = () => {
+    if (fs.existsSync(AUDIO_MAP_FILE)) {
+        try {
+            return JSON.parse(fs.readFileSync(AUDIO_MAP_FILE, 'utf8'));
+        } catch (e) {
+            console.error("Error reading audio-map.json:", e);
+            return {};
+        }
+    }
+    return {};
+};
+
+const saveAudioMap = (data) => {
+    try {
+        fs.writeFileSync(AUDIO_MAP_FILE, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+        console.error("Error writing audio-map.json:", e);
+    }
+};
+
+// --- 5. API ROUTES ---
+
+// UPLOAD STUDENT AUDIO
+app.post('/api/upload-student-audio', uploadMiddleware, (req, res) => {
+    if (req.file) {
+        // Cloudinary/Multer usually puts the URL in 'path' or 'secure_url'
+        let fileUrl = req.file.secure_url || req.file.path; // Try secure_url first (HTTPS), then path
+
+        // Force HTTPS for Cloudinary URLs to prevent Mixed Content errors on Render
+        if (fileUrl && fileUrl.startsWith('http:') && fileUrl.includes('cloudinary.com')) {
+            fileUrl = fileUrl.replace('http:', 'https:');
+        }
+
+        // If we are using local disk storage (fallback), req.file.path is a system path.
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+            const filename = req.file.filename;
+            fileUrl = `/uploads/${filename}`;
+        }
+
+        console.log("✅ File uploaded, URL:", fileUrl);
+        res.json({ url: fileUrl });
+    } else {
+        res.status(400).json({ error: 'No audio file uploaded' });
+    }
+});
+
+// GET All Students (Filtered by ClassId)
 app.get('/api/students', async (req, res) => {
     try {
         if (mongoose.connection.readyState === 1) {
@@ -474,9 +646,7 @@ app.post('/api/admin/recover-from-cloud', async (req, res) => {
 
         console.log("🔄 STARTING RECOVERY from Cloudinary...");
 
-        // 1. Fetch all files from Cloudinary "reading-app-audio" folder
-        // Note: exact syntax depends on Cloudinary version, using search api is best but might need enabled.
-        // We will try using the listing resource api.
+        // 1. Fetch all files from Cloudinary
         let resources = [];
         let nextCursor = null;
 
@@ -494,14 +664,10 @@ app.post('/api/admin/recover-from-cloud', async (req, res) => {
         console.log(`📂 Found ${resources.length} files on Cloudinary.`);
 
         let restoredCount = 0;
-        let errors = [];
 
         // 2. Loop through files and match to students
         for (const file of resources) {
             // Filename format: "reading-app-audio/student_ID_wWEEK.EXT"
-            // e.g. "reading-app-audio/student_s123456789_w14.webm"
-            // or just the public_id depending on how it's returned
-
             const publicId = file.public_id; // "reading-app-audio/student_s123456789_w14"
             const parts = publicId.split('/').pop().split('_');
 
@@ -516,44 +682,77 @@ app.post('/api/admin/recover-from-cloud', async (req, res) => {
                 // Construct HTTPS URL
                 const audioUrl = file.secure_url;
 
-                // 3. Find or Create Student
-                let student = await Student.findOne({ id: studentId });
+                // LOGIC SPLIT: MONGO vs LOCAL
+                if (mongoose.connection.readyState === 1) {
+                    // --- MONGO DB MODE ---
+                    let student = await Student.findOne({ id: studentId });
 
-                if (!student) {
-                    // Create minimal skeleton if missing
-                    student = new Student({
-                        id: studentId,
-                        name: `Học sinh (Khôi phục ${studentId.substr(-4)})`, // Temporary name
-                        classId: 'RECOVERED',
-                        completedLessons: 0,
-                        averageScore: 0,
-                        history: []
-                    });
-                    console.log(`➕ Created missing student: ${studentId}`);
+                    if (!student) {
+                        student = new Student({
+                            id: studentId,
+                            name: `Học sinh (Khôi phục ${studentId.substr(-4)})`,
+                            classId: 'RECOVERED',
+                            completedLessons: 0,
+                            averageScore: 0,
+                            history: []
+                        });
+                        console.log(`➕ Created missing student: ${studentId}`);
+                    }
+
+                    // Update History
+                    const historyIndex = student.history.findIndex(h => h.week === week);
+                    if (historyIndex === -1) {
+                        student.history.push({
+                            week: week,
+                            score: 0,
+                            speed: 0,
+                            audioUrl: audioUrl
+                        });
+                        restoredCount++;
+                    } else if (!student.history[historyIndex].audioUrl) {
+                        student.history[historyIndex].audioUrl = audioUrl;
+                        restoredCount++;
+                    }
+
+                    student.completedLessons = student.history.length;
+                    await student.save();
+                } else {
+                    // --- LOCAL / CLOUDINARY DB MODE ---
+                    let idx = localStudents.findIndex(s => s.id === studentId);
+                    if (idx === -1) {
+                        localStudents.push({
+                            id: studentId,
+                            name: `Học sinh (Khôi phục ${studentId.substr(-4)})`,
+                            classId: 'RECOVERED',
+                            completedLessons: 0,
+                            averageScore: 0,
+                            history: [],
+                            lastPractice: new Date()
+                        });
+                        idx = localStudents.length - 1;
+                        console.log(`➕ Created missing student (Local): ${studentId}`);
+                    }
+
+                    const student = localStudents[idx];
+                    const historyIndex = student.history.findIndex(h => h.week === week);
+
+                    if (historyIndex === -1) {
+                        student.history.push({ week, score: 0, speed: 0, audioUrl });
+                        restoredCount++;
+                    } else if (!student.history[historyIndex].audioUrl) {
+                        student.history[historyIndex].audioUrl = audioUrl;
+                        restoredCount++;
+                    }
+
+                    student.completedLessons = student.history.length;
+                    localStudents[idx] = student;
                 }
-
-                // 4. Update History
-                const historyIndex = student.history.findIndex(h => h.week === week);
-                if (historyIndex === -1) {
-                    // Add new record
-                    student.history.push({
-                        week: week,
-                        score: 0, // Unknown score, mark as 0 or 100?
-                        speed: 0,
-                        audioUrl: audioUrl
-                    });
-                    restoredCount++;
-                } else if (!student.history[historyIndex].audioUrl) {
-                    // Link broken, restore it
-                    student.history[historyIndex].audioUrl = audioUrl;
-                    restoredCount++;
-                }
-
-                // Recalculate stats
-                student.completedLessons = student.history.length;
-
-                await student.save();
             }
+        }
+
+        // 3. Sync if needed
+        if (mongoose.connection.readyState !== 1 && restoredCount > 0) {
+            saveDBToCloud();
         }
 
         console.log(`✅ Recovery Complete. Restored/Linked ${restoredCount} items.`);
