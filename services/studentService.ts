@@ -224,8 +224,9 @@ export const initializeStudentsIfEmpty = async () => {
         window.dispatchEvent(new Event('students_updated'));
     }
 
-    // Standard Sync (Double check)
-    syncWithServer();
+    // Standard Sync (Double check) with saved class context
+    const savedClassId = localStorage.getItem('teacher_class_id');
+    syncWithServer(savedClassId || undefined);
 };
 
 
