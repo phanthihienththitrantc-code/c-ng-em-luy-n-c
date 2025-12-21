@@ -44,13 +44,17 @@ const connectDB = async () => {
 connectDB();
 
 // --- 2. CLOUDINARY CONFIG ---
-// Only config if credentials exist
+// Only config if ALL credentials exist
 let upload = null;
-if (process.env.CLOUDINARY_CLOUD_NAME) {
+const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+const apiKey = process.env.CLOUDINARY_API_KEY;
+const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+if (cloudName && apiKey && apiSecret) {
     cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME.trim(),
-        api_key: process.env.CLOUDINARY_API_KEY.trim(),
-        api_secret: process.env.CLOUDINARY_API_SECRET.trim()
+        cloud_name: cloudName.trim(),
+        api_key: apiKey.trim(),
+        api_secret: apiSecret.trim()
     });
 
     const storage = new CloudinaryStorage({
