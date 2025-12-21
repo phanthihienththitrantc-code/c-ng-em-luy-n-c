@@ -414,12 +414,25 @@ app.delete('/api/lessons/:id', async (req, res) => {
     }
 });
 
-// Health Check
+// Health Check & Debug Info
 app.get('/api/health', (req, res) => {
+    const isMongoUriSet = !!process.env.MONGODB_URI;
+    const isCloudinarySet = !!process.env.CLOUDINARY_CLOUD_NAME;
+
     res.json({
         status: 'ok',
-        mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-        cloudinary: !!process.env.CLOUDINARY_CLOUD_NAME
+        environment: {
+            mongo_uri_configured: isMongoUriSet,
+            cloudinary_configured: isCloudinarySet,
+            node_env: process.env.NODE_ENV || 'development'
+        },
+        mongo_status: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        // Show which storage is active
+        storage_mode: isCloudinarySet ? 'CLOUDINARY (Persistent)' : 'DISK (Ephemeral/Temporary)',
+        // Debug tips
+        message: !isMongoUriSet
+            ? '⚠️ WARNING: MONGODB_URI is not set. Data will be lost when server restarts!'
+            : '✅ Persistence configured correctly.'
     });
 });
 

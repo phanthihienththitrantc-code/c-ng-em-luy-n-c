@@ -45,13 +45,17 @@ export const syncWithServer = async (classId?: string) => {
 
             const localStudents = getStudents();
 
-            // MERGE STRATEGY: Server Authority + Smart Merge for Audio
-            const finalStudents = serverData.map(serverStudent => {
+            // MERGE STRATEGY: Union (Server + Local-Only)
+            // This prevents data loss if Server returns empty list or if local creates haven't pushed yet.
+            const serverIds = new Set(serverData.map(s => s.id));
+            const localStudents = getStudents();
+
+            // 1. Process Server Data (Update existing)
+            const updatedServerStudents = serverData.map(serverStudent => {
                 const localStudent = localStudents.find(s => s.id === serverStudent.id);
                 if (!localStudent) return serverStudent;
 
                 // If Local has Audio URL but Server doesn't, preserve Local Audio
-                // This happens when Upload finishes but Sync hasn't run yet
                 const mergedHistory = serverStudent.history.map(serverH => {
                     const localH = localStudent.history.find(h => h.week === serverH.week);
                     if (localH && localH.audioUrl && !serverH.audioUrl) {
@@ -66,11 +70,20 @@ export const syncWithServer = async (classId?: string) => {
                 };
             });
 
+            // 2. Keep Local-Only Students (Preserve unsynced new students)
+            const localOnlyStudents = localStudents.filter(s => !serverIds.has(s.id));
+
+            const finalStudents = [...updatedServerStudents, ...localOnlyStudents];
+
             // Save merged list
-            // If filtering by classId, this overwrites everything with just that class.
-            // This is acceptable behavior for "Switching Classes".
             localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(finalStudents));
             window.dispatchEvent(new Event('students_updated'));
+
+            // Optional: Try to backfill local-only students to server?
+            if (localOnlyStudents.length > 0) {
+                console.log(`Found ${localOnlyStudents.length} unsynced students, attempting backfill...`);
+                localOnlyStudents.forEach(s => syncStudentToServer(s));
+            }
         }
     } catch (error) {
         console.error("Sync failed:", error);
