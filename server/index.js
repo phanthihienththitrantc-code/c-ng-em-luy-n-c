@@ -233,6 +233,22 @@ const LessonSchema = new mongoose.Schema({
 });
 const Lesson = mongoose.models.Lesson || mongoose.model('Lesson', LessonSchema);
 
+// --- CLASS SCHEMA & MODEL ---
+const ClassSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true }, // Class Code (e.g., "1A3_2024")
+    name: { type: String, required: true }, // Display Name (e.g., "Lớp 1A3")
+    teacherName: { type: String, default: 'Giáo viên' },
+    createdAt: { type: Date, default: Date.now }
+});
+const ClassModel = mongoose.models.Class || mongoose.model('Class', ClassSchema);
+
+// In-Memory Classes (Synced to Cloudinary/File)
+let localClasses = [
+    { id: '1A3', name: 'Lớp 1A3', teacherName: 'Cô giáo', createdAt: new Date() }
+];
+// Note: We should also sync localClasses to file/cloud if needed, similar to localStudents. 
+// For simplicity in this iteration, we initialize with a default class.
+
 
 
 // --- FILE-BASED AUDIO MAP FALLBACK (For local run without MongoDB) ---
@@ -304,9 +320,17 @@ app.get('/api/students', async (req, res) => {
         // Fallback: Return Local Data
         let filtered = localStudents;
         const classId = req.query.classId;
-        if (classId && classId !== 'DEFAULT') {
-            filtered = localStudents.filter(s => s.classId === classId);
+        
+        if (classId) {
+            if (classId === 'DEFAULT') {
+                // Lớp mặc định: Bao gồm học sinh đã gán 'DEFAULT' HOẶC học sinh cũ chưa có classId
+                filtered = localStudents.filter(s => !s.classId || s.classId === 'DEFAULT');
+            } else {
+                // Lớp cụ thể
+                filtered = localStudents.filter(s => s.classId === classId);
+            }
         }
+        
         res.json(filtered);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -852,6 +876,61 @@ app.get('/api/admin/cloudinary-files', async (req, res) => {
         const result = await cloudinary.api.resources({
             resource_type: 'video', // Most audios are webm/mp4 -> video
             type: 'upload',
+            prefix: 'reading-app-audio/',
+            max_results: 50,
+            next_cursor: nextCursor,
+            order: 'created_at:desc' // Newest first
+        });
+
+        res.json({
+            files: result.resources.map(f => ({
+                public_id: f.public_id,
+                url: f.secure_url,
+                created_at: f.created_at,
+                format: f.format,
+                size: f.bytes
+            })),
+            next_cursor: result.next_cursor
+        });
+
+    } catch (error) {
+        console.error("Fetch Files Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// --- 6. SERVE FRONTEND ---
+const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+    console.log("Serving frontend from:", distPath);
+    app.use(express.static(distPath));
+    // SPA Fallback
+    app.get(/.*/, (req, res) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(distPath, 'index.html'));
+        }
+    });
+} else {
+    // Default Home for API-only mode
+    app.get('/', (req, res) => {
+        res.send('Server is running (API mode). Frontend not found.');
+    });
+}
+
+
+// WRAP STARTUP IN ASYNC TO WAIT FOR DB/DATA LOAD
+const startServer = async () => {
+    console.log("⏳ Initializing Data Connection...");
+    await connectDB();
+
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 FULL SERVER running on port ${PORT}`);
+        console.log(`👉 Local: http://localhost:${PORT}`);
+    });
+};
+
+startServer();
             prefix: 'reading-app-audio/',
             max_results: 50,
             next_cursor: nextCursor,

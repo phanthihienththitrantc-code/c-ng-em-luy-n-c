@@ -65,3 +65,10 @@ export interface GeminiFeedbackSchema {
   spoken_text?: string; // The text Gemini heard from the audio
   reading_speed?: number;
 }
+
+export interface Class {
+  id: string; // Unique Class Code
+  name: string; // Display Name
+  teacherName?: string;
+  createdAt?: Date;
+}

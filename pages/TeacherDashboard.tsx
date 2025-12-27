@@ -19,10 +19,12 @@ export const TeacherDashboard: React.FC = () => {
   const [noteContent, setNoteContent] = useState('');
   const [savedNotes, setSavedNotes] = useState<{ studentName: string, note: string, date: string }[]>([]);
 
-  // Class Name State
-  const [className, setClassName] = useState('Lớp 1A3');
-  const [isEditingClass, setIsEditingClass] = useState(false);
-  const [tempClassName, setTempClassName] = useState('');
+  // Class Management State
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [isCreateClassModalOpen, setIsCreateClassModalOpen] = useState(false);
+  const [newClassCode, setNewClassCode] = useState('');
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassTeacher, setNewClassTeacher] = useState('');
 
   // Week Selector State
   // Lesson Data for Weeks
@@ -185,25 +187,48 @@ export const TeacherDashboard: React.FC = () => {
     score: s.currentScore,
   }));
 
-  // --- Class Name Editing Logic ---
-  const startEditingClass = () => {
-    playClick();
-    setTempClassName(className);
-    setIsEditingClass(true);
-  };
-
-  const saveClassName = () => {
-    playClick();
-    if (tempClassName.trim()) {
-      setClassName(tempClassName);
+  // --- Class Management Logic ---
+  const handleCreateClass = async () => {
+    if (!newClassCode || !newClassName) {
+      setNotification({ message: "Vui lòng nhập Mã lớp và Tên lớp", type: 'error' });
+      return;
     }
-    setIsEditingClass(false);
+
+    try {
+      const res = await fetch('/api/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: newClassCode,
+          name: newClassName,
+          teacherName: newClassTeacher
+        })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setClasses(prev => [data, ...prev]);
+        setNotification({ message: "Tạo lớp thành công!", type: 'success' });
+        setIsCreateClassModalOpen(false);
+        setNewClassCode('');
+        setNewClassName('');
+        setNewClassTeacher('');
+        playSuccess();
+        
+        // Auto switch to new class
+        handleClassIdChange(data.id);
+      } else {
+        setNotification({ message: data.error || "Có lỗi xảy ra", type: 'error' });
+      }
+    } catch (err) {
+      setNotification({ message: "Lỗi kết nối server", type: 'error' });
+    }
   };
 
-  const cancelEditingClass = () => {
-    playClick();
-    setIsEditingClass(false);
-  };
+  const currentClass = useMemo(() => {
+    if (classId === 'DEFAULT') return { name: 'Lớp 1A3 (Mặc định)' };
+    return classes.find(c => c.id === classId) || { name: `Lớp ${classId}` };
+  }, [classes, classId]);
 
   const handleSaveNote = () => {
     if (!selectedStudent || !noteContent) return;
@@ -549,49 +574,50 @@ export const TeacherDashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            {isEditingClass ? (
-              <div className="flex items-center gap-2 animate-fade-in bg-white p-2 rounded shadow-lg border border-blue-200">
-                <input
-                  type="text"
-                  value={tempClassName}
-                  onChange={(e) => setTempClassName(e.target.value)}
-                  className="text-2xl font-bold text-primary border-b-2 border-primary outline-none px-1"
-                  autoFocus
-                  placeholder="Nhập tên lớp..."
-                  onKeyDown={(e) => e.key === 'Enter' && saveClassName()}
-                />
-                <button onClick={saveClassName} className="p-2 bg-green-500 text-white rounded hover:bg-green-600 shadow-sm" title="Lưu">
-                  <Check className="w-5 h-5" />
-                </button>
-                <button onClick={cancelEditingClass} className="p-2 bg-red-400 text-white rounded hover:bg-red-500 shadow-sm" title="Hủy">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            ) : (
-              <div
-                className="flex items-center gap-2 group cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors border border-transparent hover:border-gray-300"
-                onClick={startEditingClass}
-                title="Bấm vào để đổi tên hiển thị của lớp"
-              >
-                <h1 className="text-2xl font-bold text-gray-900">Tổng Quan {className}</h1>
-                <Edit2 className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
-              </div>
-            )}
+            <div className="relative group">
+               <button className="flex items-center gap-2 text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
+                 <School className="w-8 h-8" />
+                 {currentClass.name}
+                 <ChevronDown className="w-5 h-5 opacity-50" />
+               </button>
+               
+               {/* Class Dropdown */}
+               <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-2 hidden group-hover:block z-50 animate-fade-in-up">
+                 <div className="max-h-60 overflow-y-auto">
+                   <button
+                      onClick={() => handleClassIdChange('DEFAULT')}
+                      className={`w-full text-left px-4 py-2 rounded-lg mb-1 ${classId === 'DEFAULT' ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-gray-50'}`}
+                   >
+                     Lớp 1A3 (Mặc định)
+                   </button>
+                   {classes.map(cls => (
+                     <button
+                       key={cls.id}
+                       onClick={() => handleClassIdChange(cls.id)}
+                       className={`w-full text-left px-4 py-2 rounded-lg mb-1 ${classId === cls.id ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-gray-50'}`}
+                     >
+                       {cls.name} <span className="text-xs text-gray-400 ml-1">({cls.id})</span>
+                     </button>
+                   ))}
+                 </div>
+                 <div className="border-t border-gray-100 mt-1 pt-1">
+                   <button
+                     onClick={() => setIsCreateClassModalOpen(true)}
+                     className="w-full flex items-center gap-2 px-4 py-2 text-green-600 hover:bg-green-50 rounded-lg font-medium"
+                   >
+                     <PlusCircle className="w-4 h-4" />
+                     Tạo lớp mới
+                   </button>
+                 </div>
+               </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 mb-2">
-            <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
-              <span className="text-xs font-bold text-gray-500 uppercase">Mã Lớp:</span>
-              <input
-                value={classId}
-                onChange={(e) => handleClassIdChange(e.target.value.toUpperCase())}
-                className="bg-transparent border-b border-gray-300 w-24 text-sm font-bold text-primary focus:outline-none focus:border-primary"
-                title="Nhập mã lớp để chuyển đổi dữ liệu"
-                placeholder="DEFAULT"
-              />
-            </div>
-
-
+             <p className="text-gray-500 text-sm">
+                Đang quản lý: <span className="font-bold text-gray-700">{currentClass.name}</span>
+                {classId !== 'DEFAULT' && <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">ID: {classId}</span>}
+             </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1079,6 +1105,75 @@ export const TeacherDashboard: React.FC = () => {
         onClose={() => setIsAddStudentOpen(false)}
         onAdd={handleAddStudent}
       />
+
+      {/* Modal Tạo Lớp */}
+      {isCreateClassModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <School className="w-6 h-6 text-blue-600" />
+                Tạo Lớp Học Mới
+              </h2>
+              <button onClick={() => setIsCreateClassModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mã Lớp (ID)</label>
+                <input
+                  type="text"
+                  value={newClassCode}
+                  onChange={(e) => setNewClassCode(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  placeholder="Ví dụ: 2A1_2024"
+                />
+                <p className="text-xs text-gray-500 mt-1">Mã lớp dùng để định danh duy nhất.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên Lớp Hiển Thị</label>
+                <input
+                  type="text"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  placeholder="Ví dụ: Lớp 2A1 - Cô Lan"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Giáo Viên Chủ Nhiệm (Tùy chọn)</label>
+                <input
+                  type="text"
+                  value={newClassTeacher}
+                  onChange={(e) => setNewClassTeacher(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  placeholder="Tên giáo viên"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-8">
+              <button
+                onClick={() => setIsCreateClassModalOpen(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCreateClass}
+                disabled={!newClassCode || !newClassName}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Tạo Lớp
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Student Modal */}
       <EditStudentModal
