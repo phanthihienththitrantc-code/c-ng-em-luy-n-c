@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { LESSONS, MOCK_STUDENTS } from '../constants';
 import { evaluateReading } from '../services/geminiService';
 import { playClick, playSuccess, playFanfare, playError } from '../services/audioService';
-import { Mic, Square, RefreshCcw, Volume2, ArrowLeft, Award, AlertCircle, MessageSquare, CheckCircle2, Edit3, Loader2, BrainCircuit, X, Activity, Share2, Clock } from 'lucide-react';
+import { Mic, Square, RefreshCcw, Volume2, ArrowLeft, Award, AlertCircle, MessageSquare, CheckCircle2, Edit3, Loader2, BrainCircuit, X, Activity, Share2, Clock, Download } from 'lucide-react';
 import { GeminiFeedbackSchema } from '../types';
 import { ACHIEVEMENTS, Achievement } from './achievements';
 import { saveCommunication } from '../services/communicationService';
@@ -12,6 +12,11 @@ import { saveStudentResult } from '../services/studentService';
 
 const READING_LIMIT_SECONDS = 900; // 15 minutes
 const QUIZ_LIMIT_SECONDS = 300; // 5 minutes
+const PARTIAL_SECTION_ORDER = [
+  { id: 'section-phonemes', label: 'Phần Âm / Vần' },
+  { id: 'section-vocab', label: 'Phần Từ Ngữ' },
+  { id: 'section-text', label: 'Phần Đoạn Văn' },
+];
 
 export const ReadingPractice: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,6 +50,7 @@ export const ReadingPractice: React.FC = () => {
   // --- PARTIAL RECORDING STATE (STUDENT) ---
   const [partialRecordingId, setPartialRecordingId] = useState<string | null>(null);
   const [evaluationContext, setEvaluationContext] = useState<string>('Bài đọc');
+  const [savedPartialRecordings, setSavedPartialRecordings] = useState<Record<string, { url: string; fileName: string }>>({});
   const partialTargetRef = useRef<{ text: string, id: string, label: string } | null>(null);
 
   // Feedback Context State
@@ -122,6 +128,11 @@ export const ReadingPractice: React.FC = () => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const savedPartialRecordingsRef = useRef<Record<string, { url: string; fileName: string }>>({});
+
+  useEffect(() => {
+    savedPartialRecordingsRef.current = savedPartialRecordings;
+  }, [savedPartialRecordings]);
 
   useEffect(() => {
     // Detect supported MIME type
@@ -185,6 +196,7 @@ export const ReadingPractice: React.FC = () => {
     return () => {
       window.speechSynthesis.cancel();
       blobsRef.current.forEach(url => URL.revokeObjectURL(url));
+      Object.values(savedPartialRecordingsRef.current).forEach((item) => URL.revokeObjectURL(item.url));
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
@@ -193,6 +205,48 @@ export const ReadingPractice: React.FC = () => {
       }
     };
   }, []);
+
+  const getAudioFileExtension = () => {
+    if (supportedMimeType.includes('mp4')) return 'mp4';
+    if (supportedMimeType.includes('ogg')) return 'ogg';
+    return 'webm';
+  };
+
+  const sanitizeFileName = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'phan-bai-doc';
+
+  const handleDownloadPartial = (id: string) => {
+    const saved = savedPartialRecordings[id];
+    if (!saved) {
+      alert('Chưa có file ghi âm để tải xuống.');
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = saved.url;
+    link.download = saved.fileName;
+    link.click();
+  };
+
+  const handleDownloadAllPartials = () => {
+    const availableIds = PARTIAL_SECTION_ORDER
+      .map(section => section.id)
+      .filter(id => !!savedPartialRecordings[id]);
+
+    if (availableIds.length === 0) {
+      alert('Chưa có file ghi âm từng phần để tải xuống.');
+      return;
+    }
+
+    availableIds.forEach((id, idx) => {
+      setTimeout(() => handleDownloadPartial(id), idx * 250);
+    });
+  };
 
   // --- TIMER LOGIC ---
   useEffect(() => {
@@ -601,6 +655,16 @@ export const ReadingPractice: React.FC = () => {
       if (partialText && partialId) {
         partialTargetRef.current = { text: partialText, id: partialId, label: label || 'Phần bài đọc' };
         setPartialRecordingId(partialId);
+
+        setSavedPartialRecordings(prev => {
+          const previousRecording = prev[partialId];
+          if (previousRecording) {
+            URL.revokeObjectURL(previousRecording.url);
+          }
+          const next = { ...prev };
+          delete next[partialId];
+          return next;
+        });
       } else {
         partialTargetRef.current = null;
         setPartialRecordingId(null);
@@ -656,6 +720,22 @@ export const ReadingPractice: React.FC = () => {
 
         // --- CRITICAL FIX: Handle Partial vs Full Logic ---
         if (partialTargetRef.current) {
+          const currentPartial = partialTargetRef.current;
+          const ext = getAudioFileExtension();
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const fileName = `${sanitizeFileName(currentPartial.label)}_${timestamp}.${ext}`;
+
+          setSavedPartialRecordings(prev => {
+            const oldItem = prev[currentPartial.id];
+            if (oldItem) {
+              URL.revokeObjectURL(oldItem.url);
+            }
+            return {
+              ...prev,
+              [currentPartial.id]: { url, fileName }
+            };
+          });
+
           setEvaluationContext(partialTargetRef.current.label);
           // Pass the specific partial text to evaluate, ignoring any global spokenText mismatch
           handleEvaluate(partialTargetRef.current.text, audioBlob);
@@ -1231,6 +1311,37 @@ export const ReadingPractice: React.FC = () => {
                 <div className="mt-6 border-t pt-4">
                   <p className="text-xs font-bold text-gray-400 uppercase mb-2">Nghe lại bài đọc của con:</p>
                   <audio src={recordedAudioUrl} controls className="w-full h-8" />
+                </div>
+              )}
+
+              {Object.keys(savedPartialRecordings).length > 0 && (
+                <div className="mt-6 border-t pt-4">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <p className="text-xs font-bold text-gray-400 uppercase">File ghi âm từng phần:</p>
+                    <button
+                      onClick={handleDownloadAllPartials}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Lưu cả 3 phần
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {PARTIAL_SECTION_ORDER.filter(section => !!savedPartialRecordings[section.id]).map(section => (
+                      <div key={section.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-gray-600 mb-2">{section.label}</p>
+                        <audio src={savedPartialRecordings[section.id].url} controls className="w-full h-8" />
+                        <button
+                          onClick={() => handleDownloadPartial(section.id)}
+                          className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Lưu phần này
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
