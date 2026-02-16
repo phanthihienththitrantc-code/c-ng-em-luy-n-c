@@ -3,6 +3,34 @@ import { MOCK_STUDENTS } from '../constants';
 
 const STUDENTS_STORAGE_KEY = 'app_students_data';
 
+const normalizeStudent = (student: Partial<StudentStats>): StudentStats => {
+    const safeHistory = Array.isArray(student.history)
+        ? student.history.filter(Boolean).map((h: any) => ({
+            week: Number(h?.week) || 0,
+            score: Number(h?.score) || 0,
+            speed: h?.speed ?? 0,
+            ...(h?.audioUrl ? { audioUrl: h.audioUrl } : {})
+        }))
+        : [];
+
+    return {
+        id: student.id || `tmp-${Date.now()}`,
+        name: student.name || 'Học sinh',
+        classId: student.classId,
+        completedLessons: typeof student.completedLessons === 'number' ? student.completedLessons : 0,
+        averageScore: typeof student.averageScore === 'number' ? student.averageScore : 0,
+        readingSpeed: student.readingSpeed ?? 0,
+        history: safeHistory,
+        lastPractice: student.lastPractice ? new Date(student.lastPractice) : new Date(),
+        badges: Array.isArray(student.badges) ? student.badges : []
+    };
+};
+
+const normalizeStudents = (list: unknown): StudentStats[] => {
+    if (!Array.isArray(list)) return [];
+    return list.map((s) => normalizeStudent((s || {}) as Partial<StudentStats>));
+};
+
 // Helper to dedupe students by ID
 const dedupeStudents = (list: StudentStats[]): StudentStats[] => {
     const seen = new Set();
@@ -22,7 +50,7 @@ export const getStudents = (): StudentStats[] => {
             if (key === 'lastPractice') return new Date(value);
             return value;
         });
-        return dedupeStudents(parsed);
+        return dedupeStudents(normalizeStudents(parsed));
     } catch (e) {
         console.error("Failed to load students", e);
         return [];
@@ -36,7 +64,7 @@ export const syncWithServer = async (classId?: string) => {
         const response = await fetch(url);
         if (!response.ok) throw new Error('Failed to fetch from server');
 
-        const serverData: StudentStats[] = await response.json();
+        const serverData = normalizeStudents(await response.json());
 
         if (Array.isArray(serverData)) {
             // If classId is provided, we treat the server list as the authority for that class.
@@ -54,7 +82,7 @@ export const syncWithServer = async (classId?: string) => {
                 if (!localStudent) return serverStudent;
 
                 // If Local has Audio URL but Server doesn't, preserve Local Audio
-                const mergedHistory = serverStudent.history.map(serverH => {
+                const mergedHistory = (serverStudent.history || []).map(serverH => {
                     const localH = localStudent.history.find(h => h.week === serverH.week);
                     if (localH && localH.audioUrl && !serverH.audioUrl) {
                         return { ...serverH, audioUrl: localH.audioUrl };
@@ -192,7 +220,7 @@ export const saveStudentResult = async (studentId: string, week: number, score: 
 
 export const initializeStudentsIfEmpty = async () => {
     const stored = localStorage.getItem(STUDENTS_STORAGE_KEY);
-    let students: StudentStats[] = stored ? JSON.parse(stored) : [];
+    let students: StudentStats[] = stored ? normalizeStudents(JSON.parse(stored)) : [];
 
     if (students.length === 0) {
         console.log("Local storage empty. Attempting to fetch from server first...");
@@ -200,7 +228,7 @@ export const initializeStudentsIfEmpty = async () => {
             // Try explicit fetch first to avoid race condition with Mock Data
             const response = await fetch('/api/students');
             if (response.ok) {
-                const serverData: StudentStats[] = await response.json();
+                const serverData = normalizeStudents(await response.json());
                 if (Array.isArray(serverData) && serverData.length > 0) {
                     console.log(`Restored ${serverData.length} students from Server.`);
                     localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(serverData));
